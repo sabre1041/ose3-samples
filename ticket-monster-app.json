@@ -1,0 +1,287 @@
+{
+    "kind": "Config",
+    "apiVersion": "v1beta1",
+    "metadata": {
+        "creationTimestamp": null
+    },
+    "items": [
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1beta3",
+            "metadata": {
+                "name": "jboss-eap-packaged-builder",
+                "annotations": {
+                    "description": "Provides JBoss EAP Images containing packaged applications"
+                }
+            },
+            "spec": {
+                "dockerImageRepository": "sabre1041/jboss-eap-packaged-builder",
+                "tags": [
+                    {
+                        "name": "latest",
+                        "annotations": {
+                            "dockerImageReference": "sabre1041/jboss-eap-packaged-builder:latest"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "Service",
+            "id": "tm-app-http-service",
+            "creationTimestamp": null,
+            "apiVersion": "v1beta1",
+            "annotations": {
+                "description": "The web server's http port."
+            },
+            "port": 8080,
+            "protocol": "TCP",
+            "containerPort": 8080,
+            "labels": {
+                "application": "tm-app",
+                "template": "eap6-basic-custom"
+            },
+            "selector": {
+                "deploymentConfig": "tm-app"
+            },
+            "sessionAffinity": "None",
+            "ports": [
+                {
+                    "name": "",
+                    "protocol": "TCP",
+                    "port": 8080,
+                    "containerPort": 8080
+                }
+            ]
+        },
+        {
+            "kind": "Service",
+            "id": "tm-app-ping",
+            "creationTimestamp": null,
+            "apiVersion": "v1beta1",
+            "annotations": {
+                "description": "Ping service for clustered applications."
+            },
+            "port": 8888,
+            "protocol": "TCP",
+            "containerPort": 8888,
+            "labels": {
+                "application": "tm-app",
+                "template": "eap6-basic-custom"
+            },
+            "selector": {
+                "deploymentConfig": "tm-app"
+            },
+            "portalIP": "None",
+            "sessionAffinity": "None",
+            "ports": [
+                {
+                    "name": "",
+                    "protocol": "TCP",
+                    "port": 8888,
+                    "containerPort": 8888
+                }
+            ]
+        },
+        {
+            "kind": "Route",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "tm-app-http-route",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "tm-app",
+                    "template": "eap6-basic-custom"
+                },
+                "annotations": {
+                    "description": "Route for application's http service."
+                }
+            },
+            "host": "ticketmonster.ose.example.com",
+            "serviceName": "tm-app-http-service"
+        },
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "tm-app",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "tm-app",
+                    "template": "eap6-basic-custom"
+                }
+            },
+            "spec": {},
+            "status": {
+                "dockerImageRepository": ""
+            }
+        },
+        {
+            "kind": "BuildConfig",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "tm-app",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "tm-app",
+                    "template": "eap6-basic-custom"
+                }
+            },
+            "triggers": [
+                {
+                    "type": "generic",
+                    "generic": {
+                        "secret": "secret"
+                    }
+                },
+		        {
+		          "imageChange": {
+		            "from": {
+		              "name": "jboss-eap-packaged-builder"
+		            },
+		            "image": "sabre1041/jboss-eap-packaged-builder",
+		            "tag": "latest"
+		          },
+		          "type": "imageChange"
+		        }
+            ],
+            "parameters": {
+                "strategy": {
+                    "customStrategy": {	
+					    "env": [
+			              {
+			                "name": "ARTIFACT_REMOTE_HOST",
+			                "value": "cicd.ose.example.com:8081"
+			              },
+			             {
+			                "name": "ARTIFACT_GROUP_ID",
+			                "value": "org.jboss.examples"
+			              },
+			              {
+			                "name": "ARTIFACT_ID",
+			                "value": "ticket-monster"
+			              },
+			              {
+			                "name": "ARTIFACT_VERSION",
+			                "value": "2.7.0-SNAPSHOT"
+			              },
+			              {
+			                "name": "ARTIFACT_PACKAGING",
+			                "value": "war"
+			              },
+                          {
+						    "name": "IMAGE_NAME",
+                            "value": "registry.access.redhat.com/jboss-eap-6/eap-openshift:6.4"
+						  }
+			            ],
+                        "exposeDockerSocket": true,
+                        "image": "sabre1041/jboss-eap-packaged-builder:latest"
+                    },
+                    "type": "Custom"
+                },
+                "output": {
+                    "to": {
+                        "name": "tm-app"
+                    }
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "tm-app",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "tm-app",
+                    "template": "eap6-basic-custom"
+                }
+            },
+            "triggers": [
+                {
+                    "type": "ImageChange",
+                    "imageChangeParams": {
+                        "automatic": true,
+                        "containerNames": [
+                            "tm-app"
+                        ],
+                        "from": {
+			                "name": "tm-app"
+                        },
+                        "lastTriggeredImage": ""
+                    }
+                },
+	            {
+	              "type": "ConfigChange"
+	            }
+            ],
+            "template": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "controllerTemplate": {
+                    "replicas": 1,
+                    "replicaSelector": {
+                        "deploymentConfig": "tm-app"
+                    },
+                    "podTemplate": {
+                        "desiredState": {
+                            "manifest": {
+                                "version": "v1beta2",
+                                "id": "",
+                                "volumes": null,
+                                "containers": [
+                                    {
+                                        "name": "tm-app",
+                                        "image": "tm-app",
+                                        "ports": [
+                                            {
+                                                "name": "tm-app-tcp-8080",
+                                                "containerPort": 8080,
+                                                "protocol": "TCP"
+                                            },
+                                            {
+                                                "name": "tm-app-ping-8888",
+                                                "containerPort": 8888,
+                                                "protocol": "TCP"
+                                            }
+                                        ],
+                                        "env": [
+                                            {
+                                                "name": "OPENSHIFT_PING_SERVICE",
+                                                "key": "OPENSHIFT_PING_SERVICE",
+                                                "value": "eap-app-ping"
+                                            },
+                                            {
+                                                "name": "OPENSHIFT_PING_NAMESPACE",
+                                                "key": "OPENSHIFT_PING_NAMESPACE"
+                                            },
+                                            {
+                                                "name": "OPENSHIFT_PING_DOMAIN",
+                                                "key": "OPENSHIFT_PING_DOMAIN",
+                                                "value": "local"
+                                            }
+                                        ],
+                                        "resources": {},
+                                        "terminationMessagePath": "/dev/termination-log",
+                                        "imagePullPolicy": "PullAlways",
+                                        "capabilities": {}
+                                    }
+                                ],
+                                "restartPolicy": {
+                                    "always": {}
+                                },
+                                "dnsPolicy": "ClusterFirst"
+                            }
+                        },
+                        "labels": {
+                            "application": "tm-app",
+                            "deploymentConfig": "tm-app",
+                            "template": "eap6-basic-custom"
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
