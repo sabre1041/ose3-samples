@@ -1,0 +1,345 @@
+{
+    "kind": "Template",
+    "apiVersion": "v1beta1",
+    "metadata": {
+        "annotations": {
+            "iconClass" : "icon-jboss",
+            "description": "Application template for EAP 6 applications built using pre-packaged application."
+        },
+        "name": "eap6-packaged"
+    },
+    "parameters": [
+        {
+            "description": "The name for the application.",
+            "name": "APPLICATION_NAME"
+        },
+        {
+            "description": "The route for the application.",
+            "name": "APPLICATION_ROUTE"
+        },
+        {
+            "description": "Remote host containing the packaged artifact.",
+            "name": "ARTIFACT_REMOTE_HOST"
+        },
+        {
+            "description": "Maven group ID of the packaged artifact.",
+            "name": "ARTIFACT_GROUP_ID"
+        },
+        {
+            "description": "Maven artifact ID of the packaged artifact.",
+            "name": "ARTIFACT_ID"
+        },
+        {
+            "description": "Maven version of the packaged artifact.",
+            "name": "ARTIFACT_VERSION"
+        },
+        {
+            "description": "Maven packaging type of the packaged artifact.",
+            "name": "ARTIFACT_PACKAGING",
+            "value": "war"
+        },
+        {
+            "description": "Image used to run the application.",
+            "name": "UPSTREAM_IMAGE",
+            "value": "registry.access.redhat.com/jboss-eap-6/eap-openshift"
+        },
+        {
+            "description": "Tag of the image used to run the application.",
+            "name": "UPSTREAM_IMAGE_TAG",
+            "value": "6.4"
+        },
+        {
+            "description": "The application builder.",
+            "name": "BUILDER_APP",
+            "value": "sabre1041/jboss-eap-packaged-builder"
+        },
+        {
+            "description": "The tag for the application builder.",
+            "name": "BUILDER_APP_TAG",
+            "value": "latest"
+        }
+    ],
+    "items": [
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1beta3",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-packaged-builder",
+                "annotations": {
+                    "description": "Provides JBoss EAP Images containing packaged applications"
+                }
+            },
+            "spec": {
+                "dockerImageRepository": "${BUILDER_APP}",
+                "tags": [
+                    {
+                        "name": "${BUILDER_APP_TAG}",
+                        "annotations": {
+                            "dockerImageReference": "${BUILDER_APP}:${BUILDER_APP_TAG}"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "kind": "Service",
+            "id": "${APPLICATION_NAME}-http-service",
+            "creationTimestamp": null,
+            "apiVersion": "v1beta1",
+            "annotations": {
+                "description": "The web server's http port."
+            },
+            "port": 8080,
+            "protocol": "TCP",
+            "containerPort": 8080,
+            "labels": {
+                "application": "${APPLICATION_NAME}",
+                "template": "eap6-packaged"
+            },
+            "selector": {
+                "deploymentConfig": "${APPLICATION_NAME}"
+            },
+            "sessionAffinity": "None",
+            "ports": [
+                {
+                    "name": "",
+                    "protocol": "TCP",
+                    "port": 8080,
+                    "containerPort": 8080
+                }
+            ]
+        },
+        {
+            "kind": "Service",
+            "id": "${APPLICATION_NAME}-ping",
+            "creationTimestamp": null,
+            "apiVersion": "v1beta1",
+            "annotations": {
+                "description": "Ping service for clustered applications."
+            },
+            "port": 8888,
+            "protocol": "TCP",
+            "containerPort": 8888,
+            "labels": {
+                "application": "${APPLICATION_NAME}",
+                "template": "eap6-packaged"
+            },
+            "selector": {
+                "deploymentConfig": "${APPLICATION_NAME}"
+            },
+            "portalIP": "None",
+            "sessionAffinity": "None",
+            "ports": [
+                {
+                    "name": "",
+                    "protocol": "TCP",
+                    "port": 8888,
+                    "containerPort": 8888
+                }
+            ]
+        },
+        {
+            "kind": "Route",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}-http-route",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "${APPLICATION_NAME}",
+                    "template": "eap6-packaged"
+                },
+                "annotations": {
+                    "description": "Route for application's http service."
+                }
+            },
+            "host": "${APPLICATION_ROUTE}",
+            "serviceName": "${APPLICATION_NAME}-http-service"
+        },
+        {
+            "kind": "ImageStream",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "${APPLICATION_NAME}",
+                    "template": "eap6-packaged"
+                }
+            },
+            "spec": {},
+            "status": {
+                "dockerImageRepository": ""
+            }
+        },
+        {
+            "kind": "BuildConfig",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "${APPLICATION_NAME}",
+                    "template": "eap6-packaged"
+                }
+            },
+            "triggers": [
+                {
+                    "type": "generic",
+                    "generic": {
+                        "secret": "secret"
+                    }
+                },
+		        {
+		          "imageChange": {
+		            "from": {
+		              "name": "${APPLICATION_NAME}-packaged-builder"
+		            },
+		            "image": "${BUILDER_APP}",
+		            "tag": "${BUILDER_APP_TAG}"
+		          },
+		          "type": "imageChange"
+		        },
+                {
+                  "type": "configChange"
+                }
+            ],
+            "parameters": {
+                "strategy": {
+                    "customStrategy": {	
+					    "env": [
+			              {
+			                "name": "ARTIFACT_REMOTE_HOST",
+			                "value": "${ARTIFACT_REMOTE_HOST}"
+			              },
+			             {
+			                "name": "ARTIFACT_GROUP_ID",
+			                "value": "${ARTIFACT_GROUP_ID}"
+			              },
+			              {
+			                "name": "ARTIFACT_ID",
+			                "value": "${ARTIFACT_ID}"
+			              },
+			              {
+			                "name": "ARTIFACT_VERSION",
+			                "value": "${ARTIFACT_VERSION}"
+			              },
+			              {
+			                "name": "ARTIFACT_PACKAGING",
+			                "value": "${ARTIFACT_PACKAGING}"
+			              },
+                          {
+						    "name": "IMAGE_NAME",
+                            "value": "${UPSTREAM_IMAGE}:${UPSTREAM_IMAGE_TAG}"
+						  }
+			            ],
+                        "exposeDockerSocket": true,
+                        "image": "${BUILDER_APP}:${BUILDER_APP_TAG}"
+                    },
+                    "type": "Custom"
+                },
+                "output": {
+                    "to": {
+                        "name": "${APPLICATION_NAME}"
+                    }
+                }
+            }
+        },
+        {
+            "kind": "DeploymentConfig",
+            "apiVersion": "v1beta1",
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "creationTimestamp": null,
+                "labels": {
+                    "application": "${APPLICATION_NAME}",
+                    "template": "eap6-packaged"
+                }
+            },
+            "triggers": [
+                {
+                    "type": "ImageChange",
+                    "imageChangeParams": {
+                        "automatic": true,
+                        "containerNames": [
+                            "${APPLICATION_NAME}"
+                        ],
+                        "from": {
+			                "name": "${APPLICATION_NAME}"
+                        },
+                        "lastTriggeredImage": ""
+                    }
+                },
+	            {
+	              "type": "ConfigChange"
+	            }
+            ],
+            "template": {
+                "strategy": {
+                    "type": "Recreate"
+                },
+                "controllerTemplate": {
+                    "replicas": 1,
+                    "replicaSelector": {
+                        "deploymentConfig": "${APPLICATION_NAME}"
+                    },
+                    "podTemplate": {
+                        "desiredState": {
+                            "manifest": {
+                                "version": "v1beta2",
+                                "id": "",
+                                "volumes": null,
+                                "containers": [
+                                    {
+                                        "name": "${APPLICATION_NAME}",
+                                        "image": "${APPLICATION_NAME}",
+                                        "ports": [
+                                            {
+                                                "name": "${APPLICATION_NAME}-tcp-8080",
+                                                "containerPort": 8080,
+                                                "protocol": "TCP"
+                                            },
+                                            {
+                                                "name": "${APPLICATION_NAME}-ping-8888",
+                                                "containerPort": 8888,
+                                                "protocol": "TCP"
+                                            }
+                                        ],
+                                        "env": [
+                                            {
+                                                "name": "OPENSHIFT_PING_SERVICE",
+                                                "key": "OPENSHIFT_PING_SERVICE",
+                                                "value": "eap-app-ping"
+                                            },
+                                            {
+                                                "name": "OPENSHIFT_PING_NAMESPACE",
+                                                "key": "OPENSHIFT_PING_NAMESPACE"
+                                            },
+                                            {
+                                                "name": "OPENSHIFT_PING_DOMAIN",
+                                                "key": "OPENSHIFT_PING_DOMAIN",
+                                                "value": "local"
+                                            }
+                                        ],
+                                        "resources": {},
+                                        "terminationMessagePath": "/dev/termination-log",
+                                        "imagePullPolicy": "PullAlways",
+                                        "capabilities": {}
+                                    }
+                                ],
+                                "restartPolicy": {
+                                    "always": {}
+                                },
+                                "dnsPolicy": "ClusterFirst"
+                            }
+                        },
+                        "labels": {
+                            "application": "${APPLICATION_NAME}",
+                            "deploymentConfig": "${APPLICATION_NAME}",
+                            "template": "eap6-packaged"
+                        }
+                    }
+                }
+            }
+        }
+    ]
+}
