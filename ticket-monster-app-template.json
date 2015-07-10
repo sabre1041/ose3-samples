@@ -1,6 +1,6 @@
 {
     "kind": "Template",
-    "apiVersion": "v1beta1",
+    "apiVersion": "v1",
     "metadata": {
         "annotations": {
             "iconClass" : "icon-jboss",
@@ -8,14 +8,17 @@
         },
         "name": "eap6-packaged"
     },
+    "labels": {
+        "template": "eap6-packaged"
+    },
     "parameters": [
         {
             "description": "The name for the application.",
             "name": "APPLICATION_NAME"
         },
         {
-            "description": "The route for the application.",
-            "name": "APPLICATION_ROUTE"
+            "description": "Custom hostname for service routes.  Leave blank for default hostname, e.g.: <application-name>.<project>.<default-domain-suffix>",
+            "name": "APPLICATION_HOSTNAME"
         },
         {
             "description": "Remote host containing the packaged artifact.",
@@ -46,7 +49,7 @@
         {
             "description": "Tag of the image used to run the application.",
             "name": "UPSTREAM_IMAGE_TAG",
-            "value": "6.4"
+            "value": "latest"
         },
         {
             "description": "The application builder.",
@@ -57,17 +60,30 @@
             "description": "The tag for the application builder.",
             "name": "BUILDER_APP_TAG",
             "value": "latest"
+        },
+        {
+            "description": "Queue names",
+            "name": "HORNETQ_QUEUES",
+            "value": ""
+        },
+        {
+            "description": "Topic names",
+            "name": "HORNETQ_TOPICS",
+            "value": ""
+        },
+        {
+            "description": "HornetQ cluster admin password",
+            "name": "HORNETQ_CLUSTER_PASSWORD",
+            "from": "[a-zA-Z0-9]{8}",
+            "generate": "expression"
         }
     ],
-    "items": [
+    "objects": [
         {
             "kind": "ImageStream",
-            "apiVersion": "v1beta3",
+            "apiVersion": "v1",
             "metadata": {
-                "name": "${APPLICATION_NAME}-packaged-builder",
-                "annotations": {
-                    "description": "Provides JBoss EAP Images containing packaged applications"
-                }
+                "name": "${APPLICATION_NAME}-packaged-builder"
             },
             "spec": {
                 "dockerImageRepository": "${BUILDER_APP}",
@@ -75,7 +91,7 @@
                     {
                         "name": "${BUILDER_APP_TAG}",
                         "annotations": {
-                            "dockerImageReference": "${BUILDER_APP}:${BUILDER_APP_TAG}"
+                            "description": "Provides JBoss EAP Images containing packaged applications"
                         }
                     }
                 ]
@@ -83,129 +99,101 @@
         },
         {
             "kind": "Service",
-            "id": "${APPLICATION_NAME}-http-service",
-            "creationTimestamp": null,
-            "apiVersion": "v1beta1",
-            "annotations": {
-                "description": "The web server's http port."
-            },
-            "port": 8080,
-            "protocol": "TCP",
-            "containerPort": 8080,
-            "labels": {
-                "application": "${APPLICATION_NAME}",
-                "template": "eap6-packaged"
-            },
-            "selector": {
-                "deploymentConfig": "${APPLICATION_NAME}"
-            },
-            "sessionAffinity": "None",
-            "ports": [
-                {
-                    "name": "",
-                    "protocol": "TCP",
-                    "port": 8080,
-                    "containerPort": 8080
+            "apiVersion": "v1",
+            "spec": {
+                "ports": [
+                    {
+                        "port": 8080,
+                        "targetPort": 8080
+                    }
+                ],
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
                 }
-            ]
+            },
+            "metadata": {
+                "name": "${APPLICATION_NAME}",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "The web server's http port."
+                }
+            }
         },
         {
             "kind": "Service",
-            "id": "${APPLICATION_NAME}-ping",
-            "creationTimestamp": null,
-            "apiVersion": "v1beta1",
-            "annotations": {
-                "description": "Ping service for clustered applications."
-            },
-            "port": 8888,
-            "protocol": "TCP",
-            "containerPort": 8888,
-            "labels": {
-                "application": "${APPLICATION_NAME}",
-                "template": "eap6-packaged"
-            },
-            "selector": {
-                "deploymentConfig": "${APPLICATION_NAME}"
-            },
-            "portalIP": "None",
-            "sessionAffinity": "None",
-            "ports": [
-                {
-                    "name": "",
-                    "protocol": "TCP",
-                    "port": 8888,
-                    "containerPort": 8888
+            "apiVersion": "v1",
+            "spec": {
+                "ports": [
+                    {
+                        "port": 8888,
+                        "targetPort": 8888
+                    }
+                ],
+                "portalIP": "None",
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
                 }
-            ]
+            },
+            "metadata": {
+                "name": "${APPLICATION_NAME}-ping",
+                "labels": {
+                    "application": "${APPLICATION_NAME}"
+                },
+                "annotations": {
+                    "description": "Ping service for clustered applications."
+                }
+            }
         },
         {
             "kind": "Route",
-            "apiVersion": "v1beta1",
+            "apiVersion": "v1",
+            "id": "${APPLICATION_NAME}-http-route",
             "metadata": {
                 "name": "${APPLICATION_NAME}-http-route",
-                "creationTimestamp": null,
                 "labels": {
-                    "application": "${APPLICATION_NAME}",
-                    "template": "eap6-packaged"
+                    "application": "${APPLICATION_NAME}"
                 },
                 "annotations": {
                     "description": "Route for application's http service."
                 }
             },
-            "host": "${APPLICATION_ROUTE}",
-            "serviceName": "${APPLICATION_NAME}-http-service"
+            "spec": {
+                "host": "${APPLICATION_HOSTNAME}",
+                "to": {
+                    "name": "${APPLICATION_NAME}"
+                }
+            }
         },
         {
             "kind": "ImageStream",
-            "apiVersion": "v1beta1",
+            "apiVersion": "v1",
             "metadata": {
                 "name": "${APPLICATION_NAME}",
-                "creationTimestamp": null,
                 "labels": {
-                    "application": "${APPLICATION_NAME}",
-                    "template": "eap6-packaged"
+                    "application": "${APPLICATION_NAME}"
                 }
-            },
-            "spec": {},
-            "status": {
-                "dockerImageRepository": ""
             }
         },
         {
             "kind": "BuildConfig",
-            "apiVersion": "v1beta1",
+            "apiVersion": "v1",
             "metadata": {
                 "name": "${APPLICATION_NAME}",
-                "creationTimestamp": null,
                 "labels": {
-                    "application": "${APPLICATION_NAME}",
-                    "template": "eap6-packaged"
+                    "application": "${APPLICATION_NAME}"
                 }
             },
-            "triggers": [
-                {
-                    "type": "generic",
-                    "generic": {
-                        "secret": "secret"
-                    }
-                },
-		        {
-		          "imageChange": {
-		            "from": {
-		              "name": "${APPLICATION_NAME}-packaged-builder"
-		            },
-		            "image": "${BUILDER_APP}",
-		            "tag": "${BUILDER_APP_TAG}"
-		          },
-		          "type": "imageChange"
-		        },
-                {
-                  "type": "configChange"
-                }
-            ],
-            "parameters": {
+			"spec": {
                 "strategy": {
+                    "type": "Custom",
                     "customStrategy": {	
+                        "from": {
+                            "kind": "ImageStreamTag",
+                            "name": "${APPLICATION_NAME}-packaged-builder:${BUILDER_APP_TAG}"
+                        },
+                        "exposeDockerSocket": true,
 					    "env": [
 			              {
 			                "name": "ARTIFACT_REMOTE_HOST",
@@ -231,112 +219,125 @@
 						    "name": "IMAGE_NAME",
                             "value": "${UPSTREAM_IMAGE}:${UPSTREAM_IMAGE_TAG}"
 						  }
-			            ],
-                        "exposeDockerSocket": true,
-                        "image": "${BUILDER_APP}:${BUILDER_APP_TAG}"
-                    },
-                    "type": "Custom"
+			            ]
+                    }
                 },
+	            "triggers": [
+	                {
+	                    "type": "generic",
+	                    "generic": {
+	                        "secret": "secret"
+	                    }
+	                },
+			        {
+			          "imageChange": {
+			            "from": {
+			              "name": "${APPLICATION_NAME}-packaged-builder"
+			            },
+			            "image": "${BUILDER_APP}",
+			            "tag": "${BUILDER_APP_TAG}"
+			          },
+			          "type": "imageChange"
+			        }
+	            ],
                 "output": {
                     "to": {
                         "name": "${APPLICATION_NAME}"
                     }
                 }
-            }
+			}
         },
         {
             "kind": "DeploymentConfig",
-            "apiVersion": "v1beta1",
+            "apiVersion": "v1",
             "metadata": {
                 "name": "${APPLICATION_NAME}",
-                "creationTimestamp": null,
                 "labels": {
-                    "application": "${APPLICATION_NAME}",
-                    "template": "eap6-packaged"
+                    "application": "${APPLICATION_NAME}"
                 }
             },
-            "triggers": [
-                {
-                    "type": "ImageChange",
-                    "imageChangeParams": {
-                        "automatic": true,
-                        "containerNames": [
-                            "${APPLICATION_NAME}"
-                        ],
-                        "from": {
-			                "name": "${APPLICATION_NAME}"
-                        },
-                        "lastTriggeredImage": ""
-                    }
-                },
-	            {
-	              "type": "ConfigChange"
-	            }
-            ],
-            "template": {
+            "spec": {
                 "strategy": {
                     "type": "Recreate"
                 },
-                "controllerTemplate": {
-                    "replicas": 1,
-                    "replicaSelector": {
-                        "deploymentConfig": "${APPLICATION_NAME}"
+                "triggers": [
+                    {
+                        "type": "ImageChange",
+                        "imageChangeParams": {
+                            "automatic": true,
+                            "containerNames": [
+                                "${APPLICATION_NAME}"
+                            ],
+                            "from": {
+                                "kind": "ImageStream",
+                                "name": "${APPLICATION_NAME}"
+                            }
+                        }
+                    }
+                ],
+                "replicas": 1,
+                "selector": {
+                    "deploymentConfig": "${APPLICATION_NAME}"
+                },
+                "template": {
+                    "metadata": {
+                        "name": "${APPLICATION_NAME}",
+                        "labels": {
+                            "deploymentConfig": "${APPLICATION_NAME}",
+                            "application": "${APPLICATION_NAME}"
+                        }
                     },
-                    "podTemplate": {
-                        "desiredState": {
-                            "manifest": {
-                                "version": "v1beta2",
-                                "id": "",
-                                "volumes": null,
-                                "containers": [
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "${APPLICATION_NAME}",
+                                "image": "${APPLICATION_NAME}",
+                                "imagePullPolicy": "Always",
+                                "readinessProbe": {
+                                    "exec": {
+                                        "command": [
+                                            "/bin/bash",
+                                            "-c",
+                                            "/opt/eap/bin/readinessProbe.sh"
+                                        ]
+                                    }
+                                },
+                                "ports": [
                                     {
-                                        "name": "${APPLICATION_NAME}",
-                                        "image": "${APPLICATION_NAME}",
-                                        "ports": [
-                                            {
-                                                "name": "${APPLICATION_NAME}-tcp-8080",
-                                                "containerPort": 8080,
-                                                "protocol": "TCP"
-                                            },
-                                            {
-                                                "name": "${APPLICATION_NAME}-ping-8888",
-                                                "containerPort": 8888,
-                                                "protocol": "TCP"
-                                            }
-                                        ],
-                                        "env": [
-                                            {
-                                                "name": "OPENSHIFT_PING_SERVICE",
-                                                "key": "OPENSHIFT_PING_SERVICE",
-                                                "value": "eap-app-ping"
-                                            },
-                                            {
-                                                "name": "OPENSHIFT_PING_NAMESPACE",
-                                                "key": "OPENSHIFT_PING_NAMESPACE"
-                                            },
-                                            {
-                                                "name": "OPENSHIFT_PING_DOMAIN",
-                                                "key": "OPENSHIFT_PING_DOMAIN",
-                                                "value": "local"
-                                            }
-                                        ],
-                                        "resources": {},
-                                        "terminationMessagePath": "/dev/termination-log",
-                                        "imagePullPolicy": "PullAlways",
-                                        "capabilities": {}
+                                        "name": "${APPLICATION_NAME}-tcp-8080",
+                                        "containerPort": 8080,
+                                        "protocol": "TCP"
+                                    },
+                                    {
+                                        "name": "${APPLICATION_NAME}-ping-8888",
+                                        "containerPort": 8888,
+                                        "protocol": "TCP"
                                     }
                                 ],
-                                "restartPolicy": {
-                                    "always": {}
-                                },
-                                "dnsPolicy": "ClusterFirst"
+                                "env": [
+                                    {
+                                        "name": "OPENSHIFT_DNS_PING_SERVICE_NAME",
+                                        "value": "${APPLICATION_NAME}-ping"
+                                    },
+                                    {
+                                        "name": "OPENSHIFT_DNS_PING_SERVICE_PORT",
+                                        "value": "8888"
+                                    },
+                                    {
+                                        "name": "HORNETQ_CLUSTER_PASSWORD",
+                                        "value": "${HORNETQ_CLUSTER_PASSWORD}"
+                                    },
+                                    {
+                                        "name": "HORNETQ_QUEUES",
+                                        "value": "${HORNETQ_QUEUES}"
+                                    },
+                                    {
+                                        "name": "HORNETQ_TOPICS",
+                                        "value": "${HORNETQ_TOPICS}"
+                                    }
+                                ]
                             }
-                        },
-                        "labels": {
-                            "application": "${APPLICATION_NAME}",
-                            "deploymentConfig": "${APPLICATION_NAME}",
-                            "template": "eap6-packaged"
-                        }
+                        ]
                     }
                 }
             }
