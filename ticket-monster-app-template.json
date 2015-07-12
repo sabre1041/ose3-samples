@@ -52,16 +52,6 @@
             "value": "latest"
         },
         {
-            "description": "The application builder.",
-            "name": "BUILDER_APP",
-            "value": "sabre1041/jboss-eap-packaged-builder"
-        },
-        {
-            "description": "The tag for the application builder.",
-            "name": "BUILDER_APP_TAG",
-            "value": "latest"
-        },
-        {
             "description": "Queue names",
             "name": "HORNETQ_QUEUES",
             "value": ""
@@ -79,24 +69,6 @@
         }
     ],
     "objects": [
-        {
-            "kind": "ImageStream",
-            "apiVersion": "v1",
-            "metadata": {
-                "name": "${APPLICATION_NAME}-packaged-builder"
-            },
-            "spec": {
-                "dockerImageRepository": "${BUILDER_APP}",
-                "tags": [
-                    {
-                        "name": "${BUILDER_APP_TAG}",
-                        "annotations": {
-                            "description": "Provides JBoss EAP Images containing packaged applications"
-                        }
-                    }
-                ]
-            }
-        },
         {
             "kind": "Service",
             "apiVersion": "v1",
@@ -191,7 +163,8 @@
                     "customStrategy": {	
                         "from": {
                             "kind": "ImageStreamTag",
-                            "name": "${APPLICATION_NAME}-packaged-builder:${BUILDER_APP_TAG}"
+							"namespace": "openshift",
+                            "name": "jboss-eap-packaged-builder:3.0"
                         },
                         "exposeDockerSocket": true,
 					    "env": [
@@ -228,17 +201,7 @@
 	                    "generic": {
 	                        "secret": "secret"
 	                    }
-	                },
-			        {
-			          "imageChange": {
-			            "from": {
-			              "name": "${APPLICATION_NAME}-packaged-builder"
-			            },
-			            "image": "${BUILDER_APP}",
-			            "tag": "${BUILDER_APP_TAG}"
-			          },
-			          "type": "imageChange"
-			        }
+	                }
 	            ],
                 "output": {
                     "to": {
