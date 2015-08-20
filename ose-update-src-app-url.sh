@@ -3,7 +3,7 @@
 
 
 usage() {
-  echo "Usage $0 -h|--host=\"<host>\" -u|--user=\"<username>\" -p|--password=\"<password>\" -n|--namespace=\"<namespace>\" -a|--app=\"<app>\" -s|--source=\"<source>\""
+  echo "Usage $0 -h|--host=\"<host>\" -u|--user=\"<username>\" -p|--password=\"<password>\" -n|--namespace=\"<namespace>\" -a|--app=\"<app>\" -s|--source=\"<source>\" -t|--token=\"<token>\""
 }
 
 
@@ -31,29 +31,42 @@ do
     -s=*|--source=*)
       SOURCE="${i#*=}"
       shift;;
+    -t=*|--token=*)
+      TOKEN="${i#*=}"
+      shift;;
   esac
 done
 
-if [ -z $HOST ] || [ -z $USER ] || [ -z $PASSWORD ] || [ -z $NAMESPACE ] || [ -z $APP ] || [ -z $SOURCE ]; then
+if [ -z $HOST ] || [ -z $USER ] || [ -z $NAMESPACE ] || [ -z $APP ] || [ -z $SOURCE ]; then
   echo "Missing required arguments!"
   usage
   exit 1
 fi 
 
-
-# Get auth token
-CHALLENGE_RESPONSE=$(curl -s  -I --insecure -f  "https://${HOST}:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client" --user ${USER}:${PASSWORD} -H "X-CSRF-Token: 1")
-
-if [ $? -ne 0 ]; then
-    echo "Error: Unauthorized Access Attempt"
-    exit 1
+if [ -z $PASSWORD ] && [ -z $TOKEN ]; then
+	echo "Token or Password must be provided"
+	usage
+	exit 1
 fi
 
-TOKEN=$(echo "$CHALLENGE_RESPONSE" | grep -oP "access_token=\K[^&]*")
+# Get token if not present
+if [ -z $TOKEN ]; then
 
-if [ -z "$TOKEN" ]; then
-    echo "Token is blank!"
-    exit 1
+	# Get auth token
+	CHALLENGE_RESPONSE=$(curl -s  -I --insecure -f  "https://${HOST}:8443/oauth/authorize?response_type=token&client_id=openshift-challenging-client" --user ${USER}:${PASSWORD} -H "X-CSRF-Token: 1")
+
+	if [ $? -ne 0 ]; then
+	    echo "Error: Unauthorized Access Attempt"
+	    exit 1
+	fi
+
+
+	TOKEN=$(echo "$CHALLENGE_RESPONSE" | grep -oP "access_token=\K[^&]*")
+
+	if [ -z "$TOKEN" ]; then
+    	echo "Token is blank!"
+    	exit 1
+	fi
 fi
 
 # Get build config for app
