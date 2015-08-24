@@ -122,7 +122,7 @@ do
 	
 	
 	# Check if build succeeded or failed
-	if [ "$BUILD_STATUS" == "Success" ]; then
+	if [ "$BUILD_STATUS" == "Complete" ]; then
 		echo
 		break
 	fi
