@@ -12,7 +12,7 @@ ORIG_HOME=$HOME
 trap end_trap EXIT
 
 function end_trap() {
-  HOME=$ORIG_HOME
+  export HOME=$ORIG_HOME
 }
 
 usage() {
@@ -65,7 +65,7 @@ if [ $OPERATION != "push" ] && [ $OPERATION != "pull" ]; then
 fi
 
 # Set home directory for Docker
-HOME=${DIRECTORY}
+export HOME=${DIRECTORY}
 
 ${SUDO} docker login -u="${USER}" -e=${EMAIL} -p="${TOKEN}" ${HOST}
 
