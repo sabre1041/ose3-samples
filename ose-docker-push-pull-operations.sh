@@ -16,7 +16,7 @@ function end_trap() {
 }
 
 usage() {
-  echo "Usage $0 -h|--host=\"<host>\" -u|--users=\"<user>\" -n|--namespace=\"<namespace>\" -a|--app=\"<app>\" -n|--namespace=\"<namespace>\" -t|--token=\"<token>\" -o|--operation=\"<operation>\" -d|--directory=\"<directory>\" -s|--sudo=\"<sudo>\""
+  echo "Usage $0 -h|--host=\"<host>\" -u|--users=\"<user>\" -n|--namespace=\"<namespace>\" -a|--app=\"<app>\" -t|--token=\"<token>\" -o|--operation=\"<operation>\" -s|--sudo=\"<sudo>\""
 }
 
 # Process Input
@@ -41,9 +41,6 @@ do
     -o=*|--operation=*)
       OPERATION="${i#*=}"
       shift;;
-    -d=*|--directory=*)
-        DIRECTORY="${i#*=}"
-        shift;;
     -s=*|--sudo=*)
       SUDO="sudo"
       shift;;
@@ -64,11 +61,9 @@ if [ $OPERATION != "push" ] && [ $OPERATION != "pull" ]; then
   exit 1
 fi
 
-# Set home directory for Docker
-HOME=${DIRECTORY}
 
 ${SUDO} docker login -u="${USER}" -e=${EMAIL} -p="${TOKEN}" ${HOST}
 
 ${SUDO} docker ${OPERATION} "${HOST}/${NAMESPACE}/${APP}"
 
-rm -rf ${HOME}/.docker
+${SUDO} docker logout ${HOST}
