@@ -45,7 +45,7 @@ do
         DIRECTORY="${i#*=}"
         shift;;
     -s=*|--sudo=*)
-      SUDO="sudo"
+      SUDO="${i#*=}"
       shift;;
   esac
 done
@@ -66,6 +66,12 @@ fi
 
 # Set home directory for Docker
 HOME=${DIRECTORY}
+
+# Update Sudo command
+if [ ! -z $SUDO ]; then
+	SUDO="sudo HOME=${HOME}"
+fi
+
 
 ${SUDO} docker login -u="${USER}" -e=${EMAIL} -p="${TOKEN}" ${HOST}
 
