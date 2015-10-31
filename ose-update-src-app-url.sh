@@ -92,7 +92,7 @@ fi
 CLEANSED_SOURCE=$(echo $SOURCE | sed 's/[_&$]/\\&/g')
 
 # Update version of artifact
-UPDATED_BUILD_CONFIG=$(echo "$BUILD_CONFIG" | sed "s|\"value\": \"http.*|\"value\": \"$CLEANSED_SOURCE\"|")
+UPDATED_BUILD_CONFIG=$(echo "$BUILD_CONFIG" | jq ".spec.strategy.sourceStrategy.env |= map(if .name == \"SRC_APP_URL\" then . + {\"value\":\"$CLEANSED_SOURCE\"} else . end)")
 
 # Update buildconfig in OSE
 curl -s -X PUT -d "${UPDATED_BUILD_CONFIG}" -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:8443/osapi/v1beta3/namespaces/${NAMESPACE}/buildconfigs/${APP} > /dev/null
