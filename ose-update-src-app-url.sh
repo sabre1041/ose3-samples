@@ -88,9 +88,6 @@ if [ -z "$BUILD_CONFIG" ]; then
     exit 1
 fi
 
-# Cleanse Source for sed
-CLEANSED_SOURCE=$(echo $SOURCE | sed 's/[_&$]/\\&/g')
-
 # Update version of artifact
 UPDATED_BUILD_CONFIG=$(echo "$BUILD_CONFIG" | jq ".spec.strategy.sourceStrategy.env |= map(if .name == \"SRC_APP_URL\" then . + {\"value\":\"$SOURCE\"} else . end)")
 
