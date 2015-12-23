@@ -3,9 +3,23 @@
 
 PORT=8443
 
+
 usage() {
-  echo "Usage $0 -h|--host=\"<host>\" -p|--port=\"<port>\" -u|--user=\"<username>\" -w|--password=\"<password>\" -n|--namespace=\"<namespace>\" -a|--app=\"<app>\" -s|--source=\"<source>\" -t|--token=\"<token>\""
+  echo "
+  Usage: $0 [options]
+
+  Options:
+  -h|--host=<host>              : OpenShift Master
+  -p|--port=<port>              : OpenShift Master port (Default: 8443)
+  -t|--token=<token>            : OAuth Token to authenticate as
+  -u|--user=<username>          : Username to authenticate as (Instead of Token)
+  -w|--password=<password>      : Password to authenticate as (Instead of Token)
+  -n|--namespace=<namespace>    : OpenShift Project
+  -a|--app=<app>                : OpenShift Application
+  -s|--source=<source>          : URL of the packaged application to retrieve from a remote source
+  "
 }
+
 
 
 
@@ -81,7 +95,7 @@ if [ -z $TOKEN ]; then
 fi
 
 # Get build config for app
-BUILD_CONFIG=$(curl -s -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:${PORT}/osapi/v1beta3/namespaces/${NAMESPACE}/buildconfigs/${APP})
+BUILD_CONFIG=$(curl -s -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP})
 
 if [ -z "$BUILD_CONFIG" ]; then
     echo "Error locating build config"
@@ -92,7 +106,7 @@ fi
 UPDATED_BUILD_CONFIG=$(echo "$BUILD_CONFIG" | jq ".spec.strategy.sourceStrategy.env |= map(if .name == \"SRC_APP_URL\" then . + {\"value\":\"$SOURCE\"} else . end)")
 
 # Update buildconfig in OSE
-curl -s -X PUT -d "${UPDATED_BUILD_CONFIG}" -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:8443/osapi/v1beta3/namespaces/${NAMESPACE}/buildconfigs/${APP} > /dev/null
+curl -s -X PUT -d "${UPDATED_BUILD_CONFIG}" -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:8443/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP} > /dev/null
 
 if [  $? -ne 0  ]; then
     echo "Error updating build configuration"

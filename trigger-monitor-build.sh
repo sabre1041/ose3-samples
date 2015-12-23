@@ -14,7 +14,18 @@ BUILD_NAME=
 command -v jq -q >/dev/null 2>&1 || { echo >&2 "json parser jq is required but not installed yet... aborting."; exit 1; }
 
 usage() {
-  echo "Usage $0 -h|--host=\"<host>\" -p|--port=\"<port>\" -u|--user=\"<username>\" -w|--password=\"<password>\" -n|--namespace=\"<namespace>\" -a|--app=\"<app>\" -t|--token=\"<token>\""
+  echo "
+  Usage: $0 [options]
+
+  Options:
+  -h|--host=<host>              : OpenShift Master
+  -p|--port=<port>              : OpenShift Master port (Default: 8443)
+  -t|--token=<token>            : OAuth Token to authenticate as
+  -u|--user=<username>          : Username to authenticate as (Instead of Token)
+  -w|--password=<password>      : Password to authenticate as (Instead of Token)
+  -n|--namespace=<namespace>    : OpenShift Project
+  -a|--app=<app>                : OpenShift Application
+  "
 }
 
 # Set Trap
@@ -100,7 +111,7 @@ fi
 echo "Triggering new build of ${APP}..."
 
 
-NEW_BUILD_REQUEST=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -X POST --data-binary "{\"kind\":\"BuildRequest\",\"apiVersion\":\"v1beta3\",\"metadata\":{\"name\":\"$APP\"}}" --insecure  https://${HOST}:${PORT}/osapi/v1beta3/namespaces/${NAMESPACE}/buildconfigs/${APP}/instantiate)
+NEW_BUILD_REQUEST=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -X POST --data-binary "{\"kind\":\"BuildRequest\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"$APP\"}}" --insecure  https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP}/instantiate)
 
 BUILD_NAME=$(echo $NEW_BUILD_REQUEST | jq -r .metadata.name)
 
@@ -116,7 +127,7 @@ echo "New build created: $BUILD_NAME"
 while [ $COUNTER -lt $MAX_COUNTER ]
 do
 	
-	BUILD_STATUS_RESPONSE=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" --insecure  https://${HOST}:${PORT}/osapi/v1beta3/namespaces/${NAMESPACE}/builds/${BUILD_NAME})
+	BUILD_STATUS_RESPONSE=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" --insecure  https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/builds/${BUILD_NAME})
 	
 	BUILD_STATUS=$(echo $BUILD_STATUS_RESPONSE | jq -r .status.phase)
 	
@@ -134,6 +145,13 @@ do
 		exit 1
 	fi
 	
+	if [ "$BUILD_STATUS" == "Cancelled" ]; then
+		echo
+		echo
+		echo "Build ${BUILD_NAME} was Cancelled"
+		exit 1
+	fi
+
 	# Check build phase
 	if [ "$BUILD_STATUS" != "$BUILD_PHASE" ]; then
 		echo

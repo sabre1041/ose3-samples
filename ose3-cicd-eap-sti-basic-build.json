@@ -3,7 +3,6 @@
     "apiVersion": "v1",
     "metadata": {
         "name": "ose3-cicd-eap-sti-basic-build",
-        "namespace": "openshift",
         "annotations": {
             "description": "Application template for building binary based EAP 6 applications.",
             "iconClass": "icon-jboss",
@@ -113,7 +112,7 @@
                         "from": {
                             "kind": "ImageStreamTag",
                             "namespace": "openshift",
-                            "name": "jboss-eap6-openshift:${EAP_RELEASE}"
+                            "name": "jboss-eap64-openshift:1.2"
                         },
                         "env": [
                             {
@@ -253,14 +252,14 @@
     ],
     "parameters": [
         {
-            "name": "EAP_RELEASE",
-            "description": "EAP Release version, e.g. 6.4, etc.",
-            "value": "6.4"
-        },
-        {
             "name": "APPLICATION_NAME",
             "description": "The name for the application.",
             "value": "eap-app"
+        },
+        {
+            "name": "EAP_RELEASE",
+            "description": "EAP Release version, e.g. 6.4, etc.",
+            "value": "6.4"
         },
         {
             "name": "APPLICATION_HOSTNAME",
