@@ -2,6 +2,7 @@
 
 
 PORT=8443
+OUTPUT_TAG="default"
 
 
 usage() {
@@ -16,6 +17,7 @@ usage() {
   -w|--password=<password>      : Password to authenticate as (Instead of Token)
   -n|--namespace=<namespace>    : OpenShift Project
   -a|--app=<app>                : OpenShift Application
+  -g|--new-tag=<tag>            : Tag to apply to the output image (Default: latest)
   -s|--source=<source>          : URL of the packaged application to retrieve from a remote source
   "
 }
@@ -51,6 +53,9 @@ do
       shift;;
     -t=*|--token=*)
       TOKEN="${i#*=}"
+      shift;;
+    -g=*|--new-tag=*)
+      OUTPUT_TAG="${i#*=}"
       shift;;
   esac
 done
@@ -97,6 +102,14 @@ fi
 # Get build config for app
 BUILD_CONFIG=$(curl -s -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP})
 
+# Check the build configuration response code
+BUILD_CONFIG_RESPONSE=$?
+if [  $BUILD_CONFIG_RESPONSE -ne 0  ]; then
+    echo "Error retrieving Build Configuration. curl error: $BUILD_CONFIG_RESPONSE"
+    exit 1
+fi
+
+# Check to see if the build configuration is empty
 if [ -z "$BUILD_CONFIG" ]; then
     echo "Error locating build config"
     exit 1
@@ -104,6 +117,12 @@ fi
 
 # Update version of artifact
 UPDATED_BUILD_CONFIG=$(echo "$BUILD_CONFIG" | jq ".spec.strategy.sourceStrategy.env |= map(if .name == \"SRC_APP_URL\" then . + {\"value\":\"$SOURCE\"} else . end)")
+
+# Extract Existing Tag
+UPDATED_OUTPUT_TAG=$(echo "$UPDATED_BUILD_CONFIG" | jq -r .spec.output.to.name | sed "s/:[^:]*$/:${OUTPUT_TAG}/")
+
+# Update the output tag
+UPDATED_BUILD_CONFIG=$(echo "$UPDATED_BUILD_CONFIG" | jq ".spec.output.to.name = \"$UPDATED_OUTPUT_TAG\"")
 
 # Update buildconfig in OSE
 curl -s -X PUT -d "${UPDATED_BUILD_CONFIG}" -H "Authorization: Bearer ${TOKEN}" --insecure -f https://${HOST}:8443/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP} > /dev/null
