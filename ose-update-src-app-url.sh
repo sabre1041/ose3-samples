@@ -2,7 +2,7 @@
 
 
 PORT=8443
-OUTPUT_TAG="default"
+OUTPUT_TAG="latest"
 
 
 usage() {
