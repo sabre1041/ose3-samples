@@ -98,5 +98,6 @@ EMPTY_IS=$(echo "$DESTINATION_IS" | jq  -r --arg tag $DESTINATION_TAG '.spec.tag
 UPDATED_IS=$(echo "$EMPTY_IS" | jq ".spec.tags[] |= .+ $SOURCE_NEW_TAG")
 
 # Update the destination ImageStream
-curl -k -H "Authorization: Bearer ${TOKEN}" -X PUT --data-binary "$UPDATED_IS" https://$HOST:$PORT/oapi/v1/namespaces/$DESTINATION_NAMESPACE/imagestreams/$DESTINATION_APPLICATION
+curl -s -k -H "Authorization: Bearer ${TOKEN}" -X PUT --data-binary "$UPDATED_IS" https://$HOST:$PORT/oapi/v1/namespaces/$DESTINATION_NAMESPACE/imagestreams/$DESTINATION_APPLICATION > /dev/null 2>&1
+
 
