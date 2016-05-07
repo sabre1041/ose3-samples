@@ -3,8 +3,8 @@
 # Performs an ImageStream tag
 
 PORT="8443"
-
-
+SOURCE_TAG="latest"
+DESTINATION_TAG="latest"
 
 
 # Validate JQ is installed
