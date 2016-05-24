@@ -169,4 +169,10 @@ do
 	COUNTER=$(( $COUNTER + 1 ))
 	
 	sleep $DELAY
+
+    if [ $COUNTER -eq $MAX_COUNTER ]; then
+      echo "Max Validation Attempts Exceeded. Failed Verifying Application Build..."
+      exit 1
+    fi
+
 done
