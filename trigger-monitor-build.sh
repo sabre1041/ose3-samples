@@ -25,6 +25,7 @@ usage() {
   -w|--password=<password>      : Password to authenticate as (Instead of Token)
   -n|--namespace=<namespace>    : OpenShift Project
   -a|--app=<app>                : OpenShift Application
+  -f|--file=<file>              : Location of a compressed file to use for a binary build type
   "
 }
 
@@ -57,6 +58,9 @@ do
     -t=*|--token=*)
       TOKEN="${i#*=}"
       shift;;
+    -f=*|--FILE=*)
+      FILE="${i#*=}"
+      shift;;
   esac
 done
 
@@ -78,6 +82,12 @@ function end_trap() {
 fi
 
 }
+
+# Validate file exists
+if [ ! -f "$FILE" ]; then
+    echo "Error: Binary File Input Does Not Exist"
+    exit 1
+fi
 
 
 # Get token if not present
@@ -110,15 +120,20 @@ fi
 # Trigger a new build of application
 echo "Triggering new build of ${APP}..."
 
+if [ ! -z "${FILE}" ]; then
 
-NEW_BUILD_REQUEST=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -X POST --data-binary "{\"kind\":\"BuildRequest\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"$APP\"}}" --insecure  https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP}/instantiate)
+    NEW_BUILD_REQUEST=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/octet-stream" -X POST --data-binary "@${FILE}" -k  https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP}/instantiatebinary)
+
+else
+
+    NEW_BUILD_REQUEST=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" -H "Content-Type: application/json" -X POST --data-binary "{\"kind\":\"BuildRequest\",\"apiVersion\":\"v1\",\"metadata\":{\"name\":\"$APP\"}}" --insecure  https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/buildconfigs/${APP}/instantiate)
+
+fi
 
 BUILD_NAME=$(echo $NEW_BUILD_REQUEST | jq -r .metadata.name)
 
 echo
 echo "New build created: $BUILD_NAME"
-
-
 
 
 # Allow build to progress through lifecycle (pending -> running). Give the build X amount of time to complete each phase resetting the counter
@@ -128,10 +143,10 @@ while [ $COUNTER -lt $MAX_COUNTER ]
 do
 	
 	BUILD_STATUS_RESPONSE=$(curl -s -f -H "Authorization: Bearer ${TOKEN}" --insecure  https://${HOST}:${PORT}/oapi/v1/namespaces/${NAMESPACE}/builds/${BUILD_NAME})
-	
+
 	BUILD_STATUS=$(echo $BUILD_STATUS_RESPONSE | jq -r .status.phase)
-	
-	
+
+
 	# Check if build succeeded or failed
 	if [ "$BUILD_STATUS" == "Complete" ]; then
 		echo
