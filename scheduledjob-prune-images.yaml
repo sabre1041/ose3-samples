@@ -69,7 +69,7 @@
             "name": "SCHEDULE",
             "displayName": "Cron Schedule",
             "description": "Cron Schedule to Execute the Job",
-            "value": "* */1 * * ?",
+            "value": "0 * * * ?",
             "required": true
         },
         {
